@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+<style>
+html, body { width: 100%; height: 100%; padding: 0; margin: 0;}
+body { position: relative; font-family: monospace; font-size: 30px; background-color: #222; color: pink; }
+canvas { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+input { position: absolute; top: 50%; left: 0%; transform: translate(0%, -50%); transform: rotate(270deg); }
+.info { position: absolute; top: 5%; left: 5%; }
+</style>
+</head>
+<body>
+<script>
+//
+// Este script implementa el triángulo de Sierpinski como ejemplo de recursión.
+//
+
+'use strict';
+
+
+//
+// Averigua el tamaño actual del documento.
+//
+var getWindowSize = function () {
+
+  var doc = window.document;
+  var docEl = doc.documentElement;
+  var docBody = doc.body || doc.getElementsByTagName('body')[0];
+
+  return {
+    width: window.innerWidth || docEl.clientWidth || docBody.clientWidth,
+    height: window.innerHeight|| docEl.clientHeight|| docBody.clientHeight
+  };
+};
+
+
+//
+// Dibuja triángulo
+//
+// Argumentos:
+//
+// * `ui`: referencia a objeto con nuestra UI.
+// * `max`: profundidad máxima a la que queremos llegar.
+// * `i`: contador de `iteración` o `profundidad`.
+// * `w`: dimensión de los lados del triángulo.
+// * `x`: posición x del vértice `a` (arriba a la izqda).
+// * `y`: posición y del vértice `a` (arriba a la izqda).
+// * `cb`: Callback a invocar cuando termina.
+//
+var dibujaTriangulo = function (ui, max, i, w, x, y, cb) {
+
+  var ctx = ui.canvas.getContext('2d');
+  var alpha = Math.round((1 - (i / 10)) * 10) / 10;
+
+  ctx.strokeStyle = 'rgba(255, 200, 200, ' + alpha + ')';
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + (w / 2), y + w);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+
+  ui.updateInvocaciones(i === 0);
+  ui.updateProfundidad(i);
+
+  if (i >= max) {
+    return cb && cb(); // terminamos!
+  }
+
+  var count = 0;
+  var childCb = function () {
+
+    if (++count >= 3) {
+      cb && cb();
+    }
+  };
+
+  setTimeout(function () {
+
+    w /= 2;
+
+    // dibuja triángulo de la izqda
+    dibujaTriangulo(ui, max, i + 1, w, x - (w / 2), y + w, childCb);
+    // dibuja triángulo de arriba
+    dibujaTriangulo(ui, max, i + 1, w, x + (w / 2), y - w, childCb);
+    // dibuja triángulo de la dcha
+    dibujaTriangulo(ui, max, i + 1, w, x + w + (w / 2), y + w, childCb);
+  });
+};
+
+
+//
+// Estima el número de invocaciones necesarias para completar la profundidad
+// máxima deseada.
+//
+var estimaInvocaciones = function (max) {
+
+  var estimado = 1;
+
+  for (var i = 0; i < max; i++) {
+    estimado = (estimado * 3) + 1;
+  }
+
+  return estimado;
+};
+
+
+//
+// Éste método lo invocamos cada vez que queremos re-dibujar la interfaz.
+//
+var resize = function (ui) {
+
+  var size = getWindowSize();
+  var width = (size.width > size.height) ? size.height : size.width;
+  var max = parseInt(ui.slider.value);
+
+  ui.canvas.setAttribute('width', width);
+  ui.canvas.setAttribute('height', width);
+
+  ui.estimacionInvocaciones = estimaInvocaciones(max);
+
+  ui.slider.setAttribute('disabled', true);
+
+  dibujaTriangulo(ui, max, 0, width / 2, width / 4, width / 2, function () {
+
+    ui.slider.removeAttribute('disabled');
+    ui.slider.focus();
+  });
+};
+
+
+var createSlider = function () {
+
+  var slider = document.createElement('input');
+
+  slider.setAttribute('type', 'range');
+  slider.setAttribute('min', '0');
+  slider.setAttribute('max', '9');
+  slider.setAttribute('step', '1');
+  slider.setAttribute('value', '0');
+  slider.setAttribute('tabindex', '0');
+
+  return slider;
+};
+
+
+//
+// Inicializar UI
+//
+var init = function () {
+
+  var ui = {
+    canvas: document.createElement('canvas'),
+    slider: createSlider(),
+    info: document.createElement('div'),
+    divProfundidad: document.createElement('div'),
+    divInvocaciones: document.createElement('div'),
+    updateInvocaciones: function (reset) {
+
+      if (reset || !this.count) {
+        this.count = 1;
+      }
+      else {
+        this.count += 1;
+      }
+
+      var percent = Math.round((this.count / this.estimacionInvocaciones) * 100);
+      this.divInvocaciones.innerHTML = 'Invocaciones: ' + this.count + '/' +
+        this.estimacionInvocaciones + ' (' + percent + '%)';
+    },
+    updateProfundidad: function (i) {
+
+      this.divProfundidad.innerHTML = 'Profundidad: ' + (i + 1);
+    }
+  };
+
+  var boundResize = resize.bind(null, ui);
+
+  window.addEventListener('resize', boundResize);
+  ui.slider.addEventListener('change', boundResize);
+
+  ui.info.setAttribute('class', 'info');
+  ui.info.appendChild(ui.divProfundidad);
+  ui.info.appendChild(ui.divInvocaciones);
+
+  document.body.appendChild(ui.canvas);
+  document.body.appendChild(ui.slider);
+  document.body.appendChild(ui.info);
+
+  boundResize();
+};
+
+
+init(); // Empieza la acción!!
+</script>
+</body>
+</html>
